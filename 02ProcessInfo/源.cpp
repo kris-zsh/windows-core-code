@@ -96,6 +96,8 @@ BOOL EnablePrivilege(LPCTSTR pszPrivilege, BOOL fEnable)
 	return nRet;
 }
 
+
+
 DWORD StartElevatedProcess(LPCTSTR pszExcutable, LPCTSTR pszCmdline)
 {
 	SHELLEXECUTEINFO si = { sizeof(si) };
@@ -107,6 +109,7 @@ DWORD StartElevatedProcess(LPCTSTR pszExcutable, LPCTSTR pszCmdline)
 	ShellExecuteEx(&si);
 	return (GetLastError());
 }
+
 
 int main()
 {
