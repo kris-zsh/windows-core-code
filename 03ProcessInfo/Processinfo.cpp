@@ -6,6 +6,8 @@
 #include <shlobj_core.h>
 #include <tlhelp32.h>
 #include <vector>
+#include <winternl.h>
+
 
 //OpenProcessToken
 //GetTokenInformation TokenElevationType
@@ -158,6 +160,7 @@ DWORD FindThreadId(DWORD& dwProId, vector<DWORD>& dwVec)
 	}
 	return TRUE;
 }
+
 void FindProcessContainThreadId(LPCTSTR pszProcessName)
 {
 	DWORD dwID = FindProcessId(pszProcessName);
@@ -176,8 +179,80 @@ void FindProcessContainThreadId(LPCTSTR pszProcessName)
 		}
 	}
 }
+
+using NtQuery = NTSTATUS(*)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
+
+BOOL GetProcessCmdline(const DWORD& dwProcessID, std::wstring& wstrCmd)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwProcessID);
+	if (!hProcess)
+		return FALSE;
+
+	HMODULE hDll = LoadLibraryA("Ntdll.dll");
+	if (!hDll)
+		return FALSE;
+	auto Nt = reinterpret_cast<NtQuery>(GetProcAddress(hDll, "NtQueryInformationProcess"));
+
+	PROCESS_BASIC_INFORMATION pbi;
+	DWORD dwSize;
+	NTSTATUS status = Nt(hProcess, ProcessBasicInformation, &pbi, sizeof(pbi), &dwSize);
+
+	FreeLibrary(hDll);
+
+	if (!NT_SUCCESS(status))
+		return FALSE;
+
+	
+	PEB peb;
+	RTL_USER_PROCESS_PARAMETERS para;
+	ReadProcessMemory(hProcess, pbi.PebBaseAddress, &peb, sizeof(peb), nullptr);
+
+	ReadProcessMemory(hProcess, peb.ProcessParameters, &para, sizeof(para), nullptr);
+
+	wchar_t wszCmd[MAX_PATH + 1];
+	ReadProcessMemory(hProcess, para.CommandLine.Buffer, wszCmd, MAX_PATH * sizeof(wchar_t), nullptr);
+	wstrCmd = std::wstring(wszCmd);
+
+	CloseHandle(hProcess);
+	return TRUE;
+}
+DWORD HowManyHeaps(DWORD dwProcessId)
+{
+	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPHEAPLIST, dwProcessId);
+
+	HEAPLIST32 hl = {sizeof(hl)};
+	
+	DWORD dwHeapCount = 0;
+	for (BOOL re = Heap32ListFirst(hSnap, &hl); re; re = Heap32ListNext(hSnap, &hl))
+		dwHeapCount++;
+
+	return dwHeapCount;
+}
+using IsWow64 = BOOL(WINAPI *)(HANDLE, PBOOL);
+
+BOOL ProcessIsWow64(DWORD dwProcessID)
+{
+	BOOL bIsWow64 = FALSE;
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessID);
+
+	auto isWow = (IsWow64)GetProcAddress(GetModuleHandle(L"Kernel32"), "IsWow64Process");
+
+	if (isWow)
+	{
+		if (isWow(hProcess, &bIsWow64))
+		{
+			//Error
+		}
+	}
+
+	CloseHandle(hProcess);
+	return bIsWow64;
+}
+
 int main()
 {
-	FindProcessContainThreadId(L"ProcessHacker.exe");
+	std::wcout.imbue(std::locale("chs"));
+	std::wcout << ProcessIsWow64(66258) << endl;
+	std::wcout << ProcessIsWow64(26200) << endl;
 	getchar();
 }
