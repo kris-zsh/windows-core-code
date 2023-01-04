@@ -1,9 +1,11 @@
+ï»¿#include <algorithm>
 #include<Windows.h>
 #include<tchar.h>
 #include<Tlhelp32.h>
 #include <iostream>
 #include <shlobj_core.h>
-
+#include <tlhelp32.h>
+#include <vector>
 
 //OpenProcessToken
 //GetTokenInformation TokenElevationType
@@ -13,12 +15,12 @@
 //	CheckTokenMembership
 //type == TokenElevationTypeFull
 //	isUserAnAdmin
-
+using namespace std;
 BOOL GetProcessElevation(TOKEN_ELEVATION_TYPE& ELEVATION_TYPE, BOOL& isAdmin)
 {
 	HANDLE hToken;
 	DWORD dwsize;
-	// »ñµÃµ±Ç°½ø³ÌµÄÁîÅÆ¾ä±ú¡£
+	// è·å¾—å½“å‰è¿›ç¨‹çš„ä»¤ç‰Œå¥æŸ„ã€‚
 	BOOL bRet = OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken);
 	if (!bRet)
 	{
@@ -38,7 +40,7 @@ BOOL GetProcessElevation(TOKEN_ELEVATION_TYPE& ELEVATION_TYPE, BOOL& isAdmin)
 		BYTE byAdmin[SECURITY_MAX_SID_SIZE];
 		dwsize = sizeof(byAdmin);
 
-		// ´´½¨Ò»¸ö¹ÜÀíÔ±SID
+		// åˆ›å»ºä¸€ä¸ªç®¡ç†å‘˜SID
 		bRet = CreateWellKnownSid(WinBuiltinAdministratorsSid, nullptr, &byAdmin, &dwsize);
 		if (!bRet)
 		{
@@ -47,20 +49,20 @@ BOOL GetProcessElevation(TOKEN_ELEVATION_TYPE& ELEVATION_TYPE, BOOL& isAdmin)
 		}
 		HANDLE hFilter;
 		dwsize = 0;
-		//Í¨¹ıFilter TokenÀ´»ñµÃÔ­Ê¼µÄToken
-		//TokenLinkedToken±êÖ¾£¬±íÊ¾Òª»ñµÃFilter TokenµÄÔ­Ê¼Token¡£
+		//é€šè¿‡Filter Tokenæ¥è·å¾—åŸå§‹çš„Token
+		//TokenLinkedTokenæ ‡å¿—ï¼Œè¡¨ç¤ºè¦è·å¾—Filter Tokençš„åŸå§‹Tokenã€‚
 		GetTokenInformation(hToken, TokenLinkedToken, &hFilter, sizeof(hFilter), &dwsize);
-		// ¼ì²éÔ­Ê¼TokenÖĞ£¬¹ÜÀíÔ±ÕË»§adminSIDÊÇ·ñ±»¼¤»î£¬Èç¹û±»¼¤»î£¬ÄÇÃ´ËµÃ÷Æô¶¯Õâ¸ö
-		//³ÌĞòµÄÕÊºÅÊÇ¹ÜÀíÔ±ÕÊºÅ£¬·ñÔò²»ÊÇ
-		//Õâ¸öCheckTokenMembershipº¯Êı£¬½á¹û±»±£´æÔÚpIsAdmin²ÎÊıÖĞ£¬¶øÕâ¸öº¯ÊıµÄ·µ»ØÖµ
-		//Ö»ÊÇ±íÊ¾£¬Õâ¸öº¯ÊıÊÇ·ñ³É¹¦¡£
+		// æ£€æŸ¥åŸå§‹Tokenä¸­ï¼Œç®¡ç†å‘˜è´¦æˆ·adminSIDæ˜¯å¦è¢«æ¿€æ´»ï¼Œå¦‚æœè¢«æ¿€æ´»ï¼Œé‚£ä¹ˆè¯´æ˜å¯åŠ¨è¿™ä¸ª
+		//ç¨‹åºçš„å¸å·æ˜¯ç®¡ç†å‘˜å¸å·ï¼Œå¦åˆ™ä¸æ˜¯
+		//è¿™ä¸ªCheckTokenMembershipå‡½æ•°ï¼Œç»“æœè¢«ä¿å­˜åœ¨pIsAdminå‚æ•°ä¸­ï¼Œè€Œè¿™ä¸ªå‡½æ•°çš„è¿”å›å€¼
+		//åªæ˜¯è¡¨ç¤ºï¼Œè¿™ä¸ªå‡½æ•°æ˜¯å¦æˆåŠŸã€‚
 		CheckTokenMembership(hFilter, &byAdmin, &isAdmin);
-		printf(" TOKEN ÊÇºï°æµÄ Ô­Ê¼token %s \n", isAdmin == 1 ? "admin" : "default");
+		printf(" TOKEN æ˜¯çŒ´ç‰ˆçš„ åŸå§‹token %s \n", isAdmin == 1 ? "admin" : "default");
 		CloseHandle(hFilter);
 		CloseHandle(hToken);
 		return TRUE;
 	}
-	//Èç¹ûÊÇÔ­Ê¼ÁîÅÆ£¬Ö»ÒªIsUsrAndmin¾Í¿ÉÒÔÈ·¶¨£¬Æô¶¯µ±Ç°³ÌĞòµÄÕÊºÅÊÇ·ñÊÇ¹ÜÀíÔ±ÕÊºÅ¡£
+	//å¦‚æœæ˜¯åŸå§‹ä»¤ç‰Œï¼Œåªè¦IsUsrAndminå°±å¯ä»¥ç¡®å®šï¼Œå¯åŠ¨å½“å‰ç¨‹åºçš„å¸å·æ˜¯å¦æ˜¯ç®¡ç†å‘˜å¸å·ã€‚
 	else if (ELEVATION_TYPE == TokenElevationTypeFull)
 		printf("token is Elevation\n");
 	else
@@ -110,18 +112,72 @@ DWORD StartElevatedProcess(LPCTSTR pszExcutable, LPCTSTR pszCmdline)
 	return (GetLastError());
 }
 
+DWORD FindProcessId(LPCTSTR pszExeName)
+{
+	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
+	std::wstring strName = pszExeName;
+	PROCESSENTRY32 pe = {sizeof(pe)};
+	DWORD dwProcessId = -1;
+
+	BOOL re = Process32First(hSnap, &pe);
+	
+	for(;re;re = Process32Next(hSnap, &pe))
+	{
+		std::wcout << pe.szExeFile <<endl;
+
+		int nCmp = strName.compare(pe.szExeFile);
+		//ä¼ å…¥-1 å°±ä¼šè‡ªåŠ¨å¸®å¿™ç¡®è®¤é•¿åº¦
+		// int nCmp = CompareStringOrdinal(pszExeName, -1, pe.szExeFile, -1,TRUE);
+		if(nCmp == 0)
+		{
+			dwProcessId = pe.th32ProcessID;
+			break;
+		}
+	}
+	CloseHandle(hSnap);
+	return dwProcessId;
+}
+DWORD FindThreadId(DWORD& dwProId, vector<DWORD>& dwVec)
+{
+	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+
+	THREADENTRY32 te = {sizeof(te)};
+
+	BOOL re = Thread32First(hSnap, &te);
+	for(; re; re = Thread32Next(hSnap, &te))
+	{
+		if (dwProId == te.th32OwnerProcessID)
+		{
+			dwVec.push_back(te.th32ThreadID);
+		}
+	}
+	if (dwVec.empty())
+	{
+		return FALSE;
+	}
+	return TRUE;
+}
+void FindProcessContainThreadId(LPCTSTR pszProcessName)
+{
+	DWORD dwID = FindProcessId(pszProcessName);
+	std::wcout << pszProcessName << " processId: " << dwID << endl;
+	if (dwID != -1)
+	{
+		vector<DWORD> vec;
+		BOOL re = FindThreadId(dwID, vec);
+		if (re)
+		{
+			std::wcout << pszProcessName <<" contain threadId" << endl;
+			for_each(vec.begin(), vec.end(), [](DWORD a)
+			{
+				std::wcout << a << endl;
+			});
+		}
+	}
+}
 int main()
 {
-	TOKEN_ELEVATION_TYPE t1;
-	BOOL isAdmin = FALSE;
-	BOOL re = GetProcessElevation(t1, isAdmin);
-	printf("TOKEN_ELEVATION_TYPE %d\n", t1);
-	if (re)
-	{
-		if (isAdmin)
-			printf("is admin account");
-		else
-			printf("is normal account");
-	}
+	FindProcessContainThreadId(L"ProcessHacker.exe");
+	getchar();
 }
