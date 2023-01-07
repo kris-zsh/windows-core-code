@@ -189,6 +189,8 @@ void LockThread()
 	wcout << L"Thread1ID " << dwThreadId[0]<<endl;
 	wcout << L"Thread2ID " << dwThreadId[1]<<endl;
 	wcout << L"Thread3ID " << dwThreadId[2]<<endl;
+
+	WaitForMultipleObjects(3, hHandles, TRUE, INFINITE);
 	for (int i = 0; i < 3; i++)
 		CloseHandle(hHandles[i]);
 }
