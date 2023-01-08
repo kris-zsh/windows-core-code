@@ -4,23 +4,28 @@
 #include <mutex>
 #include <thread>
 #include <chrono>
+#include<random>
+
 using namespace std;
 mutex mx;
 condition_variable cv;
 queue<int> que;
+
+default_random_engine e;
+uniform_int_distribution<int> u(1,100);
 void Productor()
 {
 	for (;;)
 	{
 		unique_lock<mutex> lg(mx);
 
-		int val = rand();
+		int val = u(e);
 		que.push(val);
 		cout << "老母鸡下单了 val "<< val << endl;
 		lg.unlock();
 
 		cv.notify_all();
-		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
 
