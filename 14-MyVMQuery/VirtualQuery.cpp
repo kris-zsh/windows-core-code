@@ -58,22 +58,44 @@ AllocationProtect/Protect:	内存页面的保护类型:
 #include<Tlhelp32.h>
 #include<Psapi.h>
 #include <iostream>
+#include <TlHelp32.h>
+#include <strsafe.h>
 
 using namespace std;
 
 #pragma comment(lib, "psapi.lib")
 
+BOOL ModuleFind(HANDLE hSnap, PVOID lpAddress, wchar_t* NAME)
+{
+	MODULEENTRY32W me = { sizeof(me) };
+
+	BOOL bFound = FALSE;
+	BOOL re = Module32First(hSnap, &me);
+	for (; re; re = Module32Next(hSnap, &me))
+	{
+		if (me.modBaseAddr <= lpAddress && (me.modBaseAddr + me.dwSize) >= lpAddress)
+		{
+			StringCchPrintf(NAME, MAX_PATH, L"%s", me.szExePath);
+			bFound = TRUE;
+			break;
+		}
+	}
+
+	return bFound;
+}
 void MyVirtualQuery(DWORD dwProcessId)
 {
-	HANDLE hProcess = OpenProcess(PROCESS_VM_READ, FALSE, dwProcessId);
+	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+
+	HANDLE hProcess = OpenProcess(GENERIC_ALL, FALSE, dwProcessId);
 
 	LPSTR lpAddress = NULL;
-	char* p = NULL;
 
 	while(lpAddress < reinterpret_cast<char*>(0x80000000))
 	{
 		MEMORY_BASIC_INFORMATION mbi;
-		VirtualQuery(lpAddress, &mbi, sizeof(mbi));
+
+		VirtualQuery(lpAddress ,&mbi, sizeof(mbi));
 
 		cout << "BaseAddress: " << hex << mbi.BaseAddress << endl;
 		cout << "AllocationBase: "<< hex<< mbi.AllocationBase << endl;
@@ -83,25 +105,27 @@ void MyVirtualQuery(DWORD dwProcessId)
 		cout << "Type: "<< hex<< mbi.Type << endl;
 		cout << "Protect: "<< hex<< mbi.Protect << endl;
 
+
+		if (mbi.Type != MEM_PRIVATE)
+		{
+			wchar_t szName[MAX_PATH];
+			if (!ModuleFind(hSnap, mbi.BaseAddress, szName))
+			{
+				BOOL re = GetMappedFileName(hProcess, mbi.BaseAddress, szName, _countof(szName));
+				if (re == 0)
+					StringCchPrintf(szName, _countof(szName), L"Unknown");
+			}
+			wcout << L"ModuleName: " << szName << endl;
+		}
+		lpAddress += mbi.RegionSize;
+
 		cout << "-----------------------------" << endl;
 
-		lpAddress += mbi.RegionSize;
 		getchar();
 	}
 }
 
-void fun1(int i)
-{
-	std::cout << "fun1" << endl;
-}
-void fun1(void* e)
-{
-	std::cout << "fun2" << endl;
-}
-
 int main(int argc, char* argv[])
 {
-	// MyVirtualQuery(-1);
-	fun1(NULL);
-	fun1(nullptr);
+	MyVirtualQuery(GetCurrentProcessId());
 }
