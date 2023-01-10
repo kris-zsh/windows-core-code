@@ -65,9 +65,10 @@ using namespace std;
 
 #pragma comment(lib, "psapi.lib")
 
-BOOL ModuleFind(HANDLE hSnap, PVOID lpAddress, wchar_t* NAME)
+BOOL ModuleFind(HANDLE hSnap, PVOID lpAddress, MODULEENTRY32W& me)
 {
-	MODULEENTRY32W me = { sizeof(me) };
+	ZeroMemory(&me, sizeof(me));
+	me.dwSize = sizeof(me);
 
 	BOOL bFound = FALSE;
 	BOOL re = Module32First(hSnap, &me);
@@ -75,7 +76,6 @@ BOOL ModuleFind(HANDLE hSnap, PVOID lpAddress, wchar_t* NAME)
 	{
 		if (me.modBaseAddr <= lpAddress && (me.modBaseAddr + me.dwSize) >= lpAddress)
 		{
-			StringCchPrintf(NAME, MAX_PATH, L"%s", me.szExePath);
 			bFound = TRUE;
 			break;
 		}
@@ -83,9 +83,10 @@ BOOL ModuleFind(HANDLE hSnap, PVOID lpAddress, wchar_t* NAME)
 
 	return bFound;
 }
+
 void MyVirtualQuery(DWORD dwProcessId)
 {
-	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPALL, dwProcessId);
 
 	HANDLE hProcess = OpenProcess(GENERIC_ALL, FALSE, dwProcessId);
 
@@ -93,32 +94,35 @@ void MyVirtualQuery(DWORD dwProcessId)
 
 	while(lpAddress < reinterpret_cast<char*>(0x80000000))
 	{
-		MEMORY_BASIC_INFORMATION mbi;
+		MEMORY_BASIC_INFORMATION info;
 
-		VirtualQuery(lpAddress ,&mbi, sizeof(mbi));
+		VirtualQueryEx(hProcess, lpAddress ,&info, sizeof(MEMORY_BASIC_INFORMATION));
 
-		cout << "BaseAddress: " << hex << mbi.BaseAddress << endl;
-		cout << "AllocationBase: "<< hex<< mbi.AllocationBase << endl;
-		cout << "AllocationProtect: "<< hex<< mbi.AllocationProtect << endl;
-		cout << "RegionSize: "<< hex<< mbi.RegionSize << endl;
-		cout << "State: "<< hex<< mbi.State << endl;
-		cout << "Type: "<< hex<< mbi.Type << endl;
-		cout << "Protect: "<< hex<< mbi.Protect << endl;
+		cout << "BaseAddress: " << hex << info.BaseAddress << endl;
+		cout << "AllocationBase: "<< hex<< info.AllocationBase << endl;
+		cout << "AllocationProtect: "<< hex<< info.AllocationProtect << endl;
+		cout << "RegionSize: "<< hex<< info.RegionSize << endl;
+		cout << "State: "<< hex<< info.State << endl;
+		cout << "Type: "<< hex<< info.Type << endl;
+		cout << "Protect: "<< hex<< info.Protect << endl;
 
-
-		if (mbi.Type != MEM_PRIVATE)
+		if (info.Type != MEM_PRIVATE)
 		{
-			wchar_t szName[MAX_PATH];
-			if (!ModuleFind(hSnap, mbi.BaseAddress, szName))
+			MODULEENTRY32W me = {sizeof(me)};
+
+			if (!ModuleFind(hSnap, info.BaseAddress, me))
 			{
-				BOOL re = GetMappedFileName(hProcess, mbi.BaseAddress, szName, _countof(szName));
+				wchar_t szName[MAX_PATH];
+				BOOL re = GetMappedFileName(hProcess, info.BaseAddress, szName, _countof(szName));
 				if (re == 0)
 					StringCchPrintf(szName, _countof(szName), L"Unknown");
+				wcout << L"ModuleName: " << szName << endl;
 			}
-			wcout << L"ModuleName: " << szName << endl;
+			else
+			wcout << L"ModuleName: " << me.szExePath << endl;
 		}
-		lpAddress += mbi.RegionSize;
 
+		lpAddress += info.RegionSize;
 		cout << "-----------------------------" << endl;
 
 		getchar();
@@ -128,4 +132,5 @@ void MyVirtualQuery(DWORD dwProcessId)
 int main(int argc, char* argv[])
 {
 	MyVirtualQuery(GetCurrentProcessId());
+	
 }
