@@ -25,7 +25,7 @@ public:
 // }
 BOOL WINAPI DllMain(HINSTANCE hInstDll, DWORD fdwReason, PVOID fImpLoad)
 {
-	_TEB
+	
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
