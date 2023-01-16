@@ -2,4 +2,4 @@
 
 // extern "C"
 // __declspec(dllexport)
-int add(int a, int b);
+int __stdcall add(int a, int b);

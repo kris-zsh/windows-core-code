@@ -5,7 +5,8 @@
 
 using namespace std;
 
-using PADD = int (*)(int, int);
+using PADD = int (__stdcall *)(int, int);
+
 
 DWORD WINAPI func(LPVOID szParam)
 {
@@ -14,11 +15,11 @@ DWORD WINAPI func(LPVOID szParam)
 	PADD padd = (PADD)GetProcAddress(hDll, "abb");
 	if (!padd)
 	{
-		cout << "GetProcAddress failed GLE: " << GetLastError() << endl;
+		std::cout << "GetProcAddress failed GLE: " << GetLastError() << endl;
 		return 0;
 	}
-	cout << padd(1, 2) << endl;
-
+	std::cout << padd(1, 2) << endl;
+	return 0;
 }
 
 int main(int argc, char* argv[])
@@ -29,9 +30,11 @@ int main(int argc, char* argv[])
 		cout << "init DLl failed GLE: " << GetLastError() << endl;
 		return 0;
 	}
-	// RebaseImage
+
 	HANDLE hThread = CreateThread(nullptr, 0, func, hDll, 0, nullptr);
 	WaitForSingleObject(hThread, INFINITE);
+
+
 	CloseHandle(hThread);
 	FreeLibrary(hDll);
 }
