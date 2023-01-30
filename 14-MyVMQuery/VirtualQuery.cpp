@@ -52,7 +52,7 @@ AllocationProtect/Protect:	内存页面的保护类型:
 	(0x400)
 
 */
-#include <iomanip>
+// #include <iomanip>
 #include<windows.h>
 #include<tchar.h>
 #include<Tlhelp32.h>
@@ -106,21 +106,21 @@ void MyVirtualQuery(DWORD dwProcessId)
 		cout << "Type: "<< hex<< info.Type << endl;
 		cout << "Protect: "<< hex<< info.Protect << endl;
 
-		if (info.Type != MEM_PRIVATE)
-		{
-			MODULEENTRY32W me = {sizeof(me)};
-
-			if (!ModuleFind(hSnap, info.BaseAddress, me))
-			{
-				wchar_t szName[MAX_PATH];
-				BOOL re = GetMappedFileName(hProcess, info.BaseAddress, szName, _countof(szName));
-				if (re == 0)
-					StringCchPrintf(szName, _countof(szName), L"Unknown");
-				wcout << L"ModuleName: " << szName << endl;
-			}
-			else
-			wcout << L"ModuleName: " << me.szExePath << endl;
-		}
+		// if (info.Type != MEM_PRIVATE)
+		// {
+		// 	MODULEENTRY32W me = {sizeof(me)};
+		//
+		// 	if (!ModuleFind(hSnap, info.BaseAddress, me))
+		// 	{
+		// 		wchar_t szName[MAX_PATH];
+		// 		BOOL re = GetMappedFileName(hProcess, info.BaseAddress, szName, _countof(szName));
+		// 		if (re == 0)
+		// 			StringCchPrintf(szName, _countof(szName), L"Unknown");
+		// 		wcout << L"ModuleName: " << szName << endl;
+		// 	}
+		// 	else
+		// 	wcout << L"ModuleName: " << me.szExePath << endl;
+		// }
 
 		lpAddress += info.RegionSize;
 		cout << "-----------------------------" << endl;
